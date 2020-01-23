@@ -50,6 +50,7 @@ int main (int argc, char **argv)
         }
 
         IloCplex cplex(model);
+        cplex.setOut(env.getNullStream());
         cplex.setParam(IloCplex::TiLim, 300);
 
         if (!cplex.solve()) {
@@ -57,11 +58,17 @@ int main (int argc, char **argv)
             throw(-1);
         }
 
-        IloNumArray vals(env);
-        std::cout << "Solution status = " << cplex.getStatus() << std::endl;
-        std::cout << "Solution value = " << cplex.getObjValue() << std::endl;
-        cplex.getValues(vals, vars);
-        std::cout << "Values = " << vals << std::endl;
+        bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
+        std::cout << (isOptimal ? "1" : "0") << " " << cplex.getObjValue() << std::endl;
+
+        IloNumArray values(env);
+        cplex.getValues(values, vars);
+
+        for (long i = 0; i < incidenceMatrix.size(); i++) {
+            std::cout << (values[i] > 0 ? 1 : 0);
+            if (i != incidenceMatrix.size() - 1) std::cout << " ";
+        }
+        std::cout << std::endl;
     }
     catch (IloException& e) {
         std::cerr << "Concert exception caught: " << e << std::endl;
@@ -73,5 +80,5 @@ int main (int argc, char **argv)
     env.end();
     
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time: " <<std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << std::endl;
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms" << std::endl;
 }
