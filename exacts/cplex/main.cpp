@@ -59,7 +59,7 @@ int main (int argc, char **argv)
         }
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
-        std::cout << (isOptimal ? "1" : "0") << " " << cplex.getObjValue() << std::endl;
+        std::cout << cplex.getObjValue() << " " << (isOptimal ? "1" : "0") << std::endl;
 
         IloNumArray values(env);
         cplex.getValues(values, vars);
