@@ -2,7 +2,7 @@
 #include <vector>
 #include <chrono>
 
-#include "cplex.h"
+#include "../cplex/cplex.h"
 
 std::vector<std::vector<int> > parseIncidenceMatrix(int vertexCount, int edgeCount) {
     std::vector<std::vector<int> > incidenceMatrix(edgeCount, std::vector<int>(vertexCount));
@@ -27,16 +27,22 @@ int main (int argc, char **argv)
     std::cin >> vertexCount >> edgeCount;
 
     std::vector<std::vector<int> > incidenceMatrix = parseIncidenceMatrix(vertexCount, edgeCount);
-    Result result = nilcatenationCplex(incidenceMatrix);
+    Result initialSolution = nilcatenationCplex(incidenceMatrix);
+    std::cout << initialSolution.objectiveValue << " " << (initialSolution.isOptimal ? "1" : "0") << std::endl;
 
-    std::cout << result.objectiveValue << " " << (result.isOptimal ? "1" : "0") << std::endl;
+    bool teste = true;
+    while (teste) {
+        // std::cout << "left" << std::endl;
+        // Result branchResultLeft = nilcatenationCplex(true, true, initialSolution.variablesResult, incidenceMatrix);
+        // std::cout << branchResultLeft.objectiveValue << " " << (branchResultLeft.isOptimal ? "1" : "0") << std::endl;
 
-    // for (long i = 0; i < result.variablesResult.size(); i++) {
-    //     std::cout << result.variablesResult[i];
-    //     if (i != result.variablesResult.size() - 1) std::cout << " ";
-    // }
-    // std::cout << std::endl;
+        std::cout << "right" << std::endl;
+        Result branchResultRight = nilcatenationCplex(true, false, initialSolution.variablesResult, incidenceMatrix);
+        std::cout << branchResultRight.objectiveValue << " " << (branchResultRight.isOptimal ? "1" : "0") << std::endl;
 
+        teste = false;
+    }
+    
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     // std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count() << "ms" << std::endl;
 }

@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
   int nodeSize = std::stoi(std::string(argv[1]));
   double density = std::stod(std::string(argv[2]));
 
-  std::vector<int> discreteWeights = { 1, 2, 5, 7, 10 };
+  std::vector<int> discreteWeights = { 1, 2, 5, 7, 10, 12, 15, 20, 22, 30 };
 
   int edgesCount = 0;
   std::vector<std::vector<std::pair<int, int> > > graph(nodeSize, std::vector<std::pair<int, int> >());

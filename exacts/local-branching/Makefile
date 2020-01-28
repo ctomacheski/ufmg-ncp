@@ -17,5 +17,5 @@ CCLNFLAGS = -lconcert -lilocplex -l$(CPLEXLIB) -lm -lpthread -ldl
 make: cplex.o main.cpp
 	g++ $(CCFLAGS) $(CCLNDIRS) main.cpp cplex.o -o main.out $(CCLNFLAGS)
 
-cplex.o: cplex.cpp cplex.h
-	g++ -c $(CCFLAGS) cplex.cpp -o cplex.o
+cplex.o: ../cplex/cplex.cpp ../cplex/cplex.h
+	g++ -c $(CCFLAGS) ../cplex/cplex.cpp -o cplex.o
