@@ -3,11 +3,27 @@
 
 #include "cplex.h"
 
+std::vector<Edge> parseIncidenceMatrix(int vertexCount, int edgeCount) {
+    std::vector<Edge> incidenceMatrix(edgeCount);
+
+    for (int i = 0; i < edgeCount; i++) {
+        int from, to, weight;
+        std::cin >> from >> to >> weight;
+
+        incidenceMatrix[i].from = from;
+        incidenceMatrix[i].to = to;
+        incidenceMatrix[i].weight = weight;
+    }
+
+    return incidenceMatrix;
+}
+
 Result nilcatenationCplex(
     bool localBranch,
     bool isLeft,
     std::vector<int> initialSolution,
-    std::vector<std::vector<int> > incidenceMatrix
+    std::vector<Edge> incidenceMatrix,
+    int nodeCount
 ) {
     IloEnv env;
 
@@ -16,12 +32,11 @@ Result nilcatenationCplex(
 
         IloBoolVarArray vars(env);
         IloExpr objective(env);
-        for (int j = 0; j < incidenceMatrix.size(); j++) {
+        for (int i = 0; i < incidenceMatrix.size(); i++) {
             vars.add(IloBoolVar(env));
-            objective += vars[j]; 
+            objective += vars[i]; 
         }
         model.add(IloMaximize(env, objective));
-        objective.end();
 
         if (localBranch) {
             IloExpr inSolution(env);
@@ -37,32 +52,35 @@ Result nilcatenationCplex(
             }
 
             if (isLeft) {
-                model.add(inSolution + notInSolution <= 10);
+                model.add(inSolution + notInSolution <= 1);
             }
             else {
-                model.add(inSolution + notInSolution > 10);
+                model.add(inSolution + notInSolution >= 11);
             }
-
-            inSolution.end();
-            notInSolution.end();
         }
 
-        for (int j = 0; j < incidenceMatrix[0].size(); j++) {
-            IloExpr constraint(env);
-            for (int k = 0; k < incidenceMatrix.size(); k++) {
-                constraint += incidenceMatrix[k][j] * vars[k];
-            }
-            model.add(constraint == 0);
-            constraint.end();
+        IloExprArray constraints(env);
+        for (int i = 0; i < nodeCount; i++) {
+            constraints.add(IloExpr(env));
+        }
+
+        for (int i = 0; i < incidenceMatrix.size(); i++) {
+            Edge e = incidenceMatrix[i];
+            constraints[e.from] -= e.weight * vars[i];
+            constraints[e.to] += e.weight * vars[i];
+        }
+
+        for (int i = 0; i < nodeCount; i++) {
+            model.add(constraints[i] == 0);
         }
 
         IloCplex cplex(model);
-        cplex.setOut(env.getNullStream());
-        cplex.setParam(IloCplex::TiLim, 45);
+        //cplex.setOut(env.getNullStream());
+        cplex.setParam(IloCplex::TiLim, localBranch ? 600 : 30);
+        cplex.setParam(IloCplex::Param::Emphasis::MIP, 1);
 
         if (!cplex.solve()) {
-            std::cout << "Failed to optimize LP." << std::endl;
-            throw(-1);
+            return { false };
         }
 
         IloNumArray values(env);
@@ -75,7 +93,7 @@ Result nilcatenationCplex(
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
 
-        return { isOptimal, (int)cplex.getObjValue(), resultVariables };
+        return { true, isOptimal, (int)cplex.getObjValue(), resultVariables };
     }
     catch (IloException& e) {
         std::cerr << "Concert exception caught: " << e << std::endl;
@@ -84,9 +102,11 @@ Result nilcatenationCplex(
         std::cerr << "Unknown exception caught" << std::endl;
     }
 
+    return { false };
+
     env.end();
 }
 
-Result nilcatenationCplex(std::vector<std::vector<int> > incidenceMatrix) {
-    return nilcatenationCplex(false, false, std::vector<int>(), incidenceMatrix);
+Result nilcatenationCplex(std::vector<Edge> incidenceMatrix, int nodeCount) {
+    return nilcatenationCplex(false, false, std::vector<int>(), incidenceMatrix, nodeCount);
 }

@@ -4,20 +4,6 @@
 
 #include "cplex.h"
 
-std::vector<std::vector<int> > parseIncidenceMatrix(int vertexCount, int edgeCount) {
-    std::vector<std::vector<int> > incidenceMatrix(edgeCount, std::vector<int>(vertexCount));
-
-    for (int i = 0; i < edgeCount; i++) {
-        int from, to, weight;
-        std::cin >> from >> to >> weight;
-
-        incidenceMatrix[i][from] = -weight;
-        incidenceMatrix[i][to] = weight;
-    }
-
-    return incidenceMatrix;
-}
-
 int main (int argc, char **argv)
 {
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -26,8 +12,8 @@ int main (int argc, char **argv)
     int edgeCount;
     std::cin >> vertexCount >> edgeCount;
 
-    std::vector<std::vector<int> > incidenceMatrix = parseIncidenceMatrix(vertexCount, edgeCount);
-    Result result = nilcatenationCplex(incidenceMatrix);
+    std::vector<Edge> incidenceMatrix = parseIncidenceMatrix(vertexCount, edgeCount);
+    Result result = nilcatenationCplex(incidenceMatrix, vertexCount);
 
     std::cout << result.objectiveValue << " " << (result.isOptimal ? "1" : "0") << std::endl;
 
