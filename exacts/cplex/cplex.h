@@ -20,7 +20,7 @@ struct BranchingConstraint {
 struct Edge {
     int from;
     int to;
-    int weight;
+    long weight;
 };
 
 std::vector<Edge> parseIncidenceMatrix(int vertexCount, int edgeCount);
@@ -39,7 +39,8 @@ Result nilcatenationCplex(
 Result nilcatenationCplex(
     std::vector<Edge> incidenceMatrix,
     int nodeCount,
-    int timeLimit
+    int timeLimit,
+    bool useLB
 );
 
 #endif

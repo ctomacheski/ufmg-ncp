@@ -7,7 +7,8 @@ std::vector<Edge> parseIncidenceMatrix(int vertexCount, int edgeCount) {
     std::vector<Edge> incidenceMatrix(edgeCount);
 
     for (int i = 0; i < edgeCount; i++) {
-        int from, to, weight;
+        int from, to;
+        unsigned long weight;
         std::cin >> from >> to >> weight;
 
         incidenceMatrix[i].from = from;
@@ -20,61 +21,72 @@ std::vector<Edge> parseIncidenceMatrix(int vertexCount, int edgeCount) {
 
 
 bool verifySolution(std::vector<Edge> incidenceMatrix, Result result, int nodeCount) {
-    std::vector<int> graphBalance(nodeCount);
+    std::vector<unsigned long> graphBalance(nodeCount, 0);
 
     for (int i = 0; i < result.variablesResult.size(); i++) {
-        if (result.variablesResult[i] == 1) {
-            graphBalance[incidenceMatrix[i].from] -= incidenceMatrix[i].weight;
-            graphBalance[incidenceMatrix[i].to] += incidenceMatrix[i].weight;
-        }
+        graphBalance[incidenceMatrix[i].from] -= incidenceMatrix[i].weight * result.variablesResult[i];
+        graphBalance[incidenceMatrix[i].to] += incidenceMatrix[i].weight * result.variablesResult[i];
     }
 
     bool isCorrect = true;
     for (int i = 0; i < graphBalance.size(); i++) {
         isCorrect &= graphBalance[i] == 0;
+        if(graphBalance[i] != 0) std::cout << i << "," << graphBalance[i] << std::endl;;
     }
 
     return isCorrect;
 }
 
+bool essentiallyEqual(float a, float b, float epsilon)
+{
+    return fabs(a - b) <= ( (fabs(a) > fabs(b) ? fabs(b) : fabs(a)) * epsilon);
+}
+
+
 Result nilcatenationCplex(
     std::vector<Edge> incidenceMatrix,
     int nodeCount,
-    int timeLimit
+    int timeLimit,
+    bool useLB
 ) {
     IloEnv env;
 
     try {
         IloModel model(env);
 
-        IloBoolVarArray vars(env);
+        IloIntVarArray vars(env);
         IloExpr objective(env);
         for (int i = 0; i < incidenceMatrix.size(); i++) {
-            vars.add(IloBoolVar(env));
+            vars.add(IloIntVar(env, 0 , 1));
             objective += vars[i]; 
         }
 
         model.add(objective > 0);
         model.add(IloMaximize(env, objective));
 
-        IloExprArray constraints(env);
+        IloExprArray conditionNilc(env);
         for (int i = 0; i < nodeCount; i++) {
-            constraints.add(IloExpr(env));
+            conditionNilc.add(IloExpr(env));
         }
 
         for (int i = 0; i < incidenceMatrix.size(); i++) {
             Edge e = incidenceMatrix[i];
-            constraints[e.from] -= e.weight * vars[i];
-            constraints[e.to] += e.weight * vars[i];
+            conditionNilc[e.from] -= e.weight * vars[i];
+            conditionNilc[e.to] += e.weight * vars[i];
         }
 
         for (int i = 0; i < nodeCount; i++) {
-            model.add(constraints[i] == 0);
+            model.add(conditionNilc[i] == 0);
         }
 
         IloCplex cplex(model);
         cplex.setOut(env.getNullStream());
         cplex.setParam(IloCplex::TiLim, timeLimit);
+        cplex.setParam(IloCplex::Param::RandomSeed, 1);
+
+        if (useLB) {
+            cplex.setParam(IloCplex::Param::MIP::Strategy::LBHeur, 1);
+        }
 
         if (!cplex.solve()) {
             return { false };
@@ -90,7 +102,7 @@ Result nilcatenationCplex(
 
         std::vector<int> resultVariables(incidenceMatrix.size());
         for (long i = 0; i < incidenceMatrix.size(); i++) {
-            resultVariables[i] = (values[i] > 0 ? 1 : 0);
+            resultVariables[i] = (essentiallyEqual(values[i], 1, 0.001) ? 1 : 0);
         }
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
@@ -172,9 +184,11 @@ Result nilcatenationCplex(
         cplex.setOut(env.getNullStream());
         cplex.setParam(IloCplex::TiLim, timeLimit);
         cplex.setParam(IloCplex::Param::MIP::Tolerances::LowerCutoff, lowerBound + 1);
+        cplex.setParam(IloCplex::Param::RandomSeed, 1);
 
         if (returnFirstSolution) {
             cplex.setParam(IloCplex::Param::MIP::Limits::Solutions, 1);
+            cplex.setParam(IloCplex::Param::Emphasis::MIP, 1);
         }
 
         if (!cplex.solve()) {
@@ -191,7 +205,7 @@ Result nilcatenationCplex(
 
         std::vector<int> resultVariables(incidenceMatrix.size());
         for (long i = 0; i < incidenceMatrix.size(); i++) {
-            resultVariables[i] = (values[i] > 0 ? 1 : 0);
+            resultVariables[i] = (essentiallyEqual(values[i], 1, 0.001) ? 1 : 0);
         }
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
