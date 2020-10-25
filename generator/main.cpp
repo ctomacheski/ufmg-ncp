@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
   double density = std::stod(std::string(argv[2]));
   double dintictionProb = std::stod(std::string(argv[3]));
 
-  int weightsSize = double(nodeSize * nodeSize * density) * dintictionProb;
+  int weightsSize = nodeSize * dintictionProb;
   std::vector<int> discreteWeights(weightsSize);
   std::uniform_int_distribution<std::mt19937::result_type> distWeights(1, weightsSize * 10);
 

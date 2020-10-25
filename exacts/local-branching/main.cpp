@@ -5,16 +5,15 @@
 #include <cmath>
 
 #include "../cplex/cplex.h"
-
-const int timeLimitNode = 60;
-const int maxTimeLimit = timeLimitNode * 10;
-const int initialK = 10;
-const int maxDiversify = 50;
  
-// TODO try with addDiversityFilter()
-Result localBranching(int nodeCount, std::vector<Edge> incidenceMatrix) {
-    // std::cout << "Starting localBranching" << std::endl;
-
+Result localBranching(
+    int nodeCount,
+    std::vector<Edge> incidenceMatrix,
+    int timeLimitNode,
+    int maxTimeLimit,
+    int initialK,
+    int maxDiversify
+) {
     int remainingTime = maxTimeLimit;
     int timeLimit = std::numeric_limits<int>::max();
     int k = initialK;
@@ -185,16 +184,22 @@ Result localBranching(int nodeCount, std::vector<Edge> incidenceMatrix) {
 
     // std::cout << std::endl << "End round" << std::endl;
 
-    timeLimit = std::max(remainingTime, 0);
+    timeLimit = std::max(remainingTime, timeLimitNode);
     // std::cout << "constraints size " << constraints.size() << std::endl;
     Result finalSolution = nilcatenationCplex(incidenceMatrix, nodeCount, timeLimit, bestLowerBound, false, constraints);
 
-    if (finalSolution.isSolutionFound && finalSolution.objectiveValue > incubentSolution.objectiveValue) {
+    if (finalSolution.isSolutionFound && finalSolution.objectiveValue >= incubentSolution.objectiveValue) {
         // std::cout << "Found a better solution" << std::endl;
         return finalSolution;
     }
 
-    return incubentSolution;
+    return {
+        incubentSolution.isSolutionFound,
+        incubentSolution.isInfeasible,
+        false,
+        incubentSolution.objectiveValue,
+        incubentSolution.variablesResult
+    };
 }
 
 int main (int argc, char **argv)
@@ -203,11 +208,19 @@ int main (int argc, char **argv)
     int edgeCount;
     std::cin >> nodeCount >> edgeCount;
 
+    int maxTimeLimit = 600;
+    const int timeLimitNode = std::min((edgeCount/3000) * (maxTimeLimit/(edgeCount/nodeCount)), maxTimeLimit);
+    maxTimeLimit -= timeLimitNode;
+
+    const int initialK = 10;
+    const int maxDiversify = edgeCount/1000;
+
     std::vector<Edge> incidenceMatrix = parseIncidenceMatrix(nodeCount, edgeCount);
-    Result result = localBranching(nodeCount, incidenceMatrix);
+    Result result = localBranching(nodeCount, incidenceMatrix, timeLimitNode, maxTimeLimit, initialK, maxDiversify);
 
     std::cout
         << result.objectiveValue << " "
+        << result.gap << " "
         << (result.isOptimal ? "1" : "0") << " "
         << (verifySolution(incidenceMatrix, result, nodeCount) ? "1" : "0")
         << std::endl;

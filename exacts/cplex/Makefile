@@ -1,7 +1,7 @@
 CCOPT = -m64 -O3 -fPIC -fno-strict-aliasing -fexceptions -DNDEBUG -DIL_STD -std=c++11
-CPLEXDIR  = /opt/ibm/ILOG/CPLEX_Studio129/cplex
-CONCERTDIR = /opt/ibm/ILOG/CPLEX_Studio129/concert
-SYSTEM = x86-64_linux
+CPLEXDIR  = /Applications/CPLEX_Studio1210/cplex
+CONCERTDIR = /Applications/CPLEX_Studio1210/concert
+SYSTEM = x86-64_osx
 LIBFORMAT = static_pic
 CPLEXLIB = cplex$(dynamic:yes=1290)
 
@@ -14,8 +14,13 @@ CCFLAGS = $(CCOPT) -I$(CPLEXINCDIR) -I$(CONCERTINCDIR)
 CCLNDIRS = -L$(CPLEXLIBDIR) -L$(CONCERTLIBDIR) $(dynamic:yes=-L$(CPLEXBINDIR))
 CCLNFLAGS = -lconcert -lilocplex -l$(CPLEXLIB) -lm -lpthread -ldl
 
-make: cplex.o main.cpp
-	g++ $(CCFLAGS) $(CCLNDIRS) main.cpp cplex.o -o main.out $(CCLNFLAGS)
+GCC_FLAGS=-std=c++11 -O3
+
+make: subset.o cplex.o main.cpp
+	g++ $(CCFLAGS) $(CCLNDIRS) main.cpp cplex.o subset.o -o main.out $(CCLNFLAGS)
 
 cplex.o: cplex.cpp cplex.h
 	g++ -c $(CCFLAGS) cplex.cpp -o cplex.o
+
+subset.o: ../../util/subset.cpp ../../util/subset.h
+	g++ $(GCC_FLAGS) -c ../../util/subset.cpp

@@ -155,12 +155,14 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::vector<double> > lattice = std::vector<std::vector<double> >(m_graph + 1, std::vector<double>(m_graph + n_graph + 1));
 
+  int N_constant = std::lround(std::sqrt(((double)(m_graph+1))/4));
+
   for (int i = 0; i < m_graph; i++) {
     lattice[i][i] = 2;
 
     // create coeficients
     for (int j = 0; j < n_graph; j++) {
-      lattice[i][j + m_graph] = incidenceMatrix[j][i] * m_graph;
+      lattice[i][j + m_graph] = incidenceMatrix[j][i] * N_constant;
     }
   }
 
@@ -172,7 +174,7 @@ int main(int argc, char *argv[]) {
 
   std::vector<std::vector<double> > orthogonalBasis = std::vector<std::vector<double> >(m_graph + 1, std::vector<double>(m_graph + n_graph + 1));
   std::vector<std::vector<double> > reducedBasis = lll(lattice, orthogonalBasis, m_graph + 1, m_graph + n_graph + 1);
-  //printBasis(reducedBasis, m_graph + 1, m_graph + n_graph + 1);
+  printBasis(reducedBasis, m_graph + 1, m_graph + n_graph + 1);
 
   std::vector<std::vector<int> > possibleSolutions;
   for (int i = 0; i < m_graph; i++) {

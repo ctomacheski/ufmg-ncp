@@ -1,22 +1,36 @@
 #include <ilcplex/ilocplex.h>
 #include <vector>
+#include <set>
 
 #include "cplex.h"
 
-std::vector<Edge> parseIncidenceMatrix(int vertexCount, int edgeCount) {
+Graph parseIncidenceMatrix(int vertexCount, int edgeCount) {
     std::vector<Edge> incidenceMatrix(edgeCount);
+
+    std::vector<std::set<Edge>> ingoingEdges(vertexCount, std::set<Edge>());
+    std::vector<std::set<Edge>> outgoingEdges(vertexCount, std::set<Edge>());
+
+    std::vector<int> ingoingBalance(vertexCount);
+    std::vector<int> outgoingBalance(vertexCount);
 
     for (int i = 0; i < edgeCount; i++) {
         int from, to;
         unsigned long weight;
         std::cin >> from >> to >> weight;
 
+        incidenceMatrix[i].id = i;
         incidenceMatrix[i].from = from;
         incidenceMatrix[i].to = to;
         incidenceMatrix[i].weight = weight;
+
+        ingoingBalance[to] += weight;
+        ingoingEdges[to].insert(incidenceMatrix[i]);
+
+        outgoingBalance[from] += weight;
+        outgoingEdges[from].insert(incidenceMatrix[i]);
     }
 
-    return incidenceMatrix;
+    return { incidenceMatrix, ingoingEdges, outgoingEdges, ingoingBalance, outgoingBalance };
 }
 
 
@@ -44,11 +58,14 @@ bool essentiallyEqual(float a, float b, float epsilon)
 
 
 Result nilcatenationCplex(
-    std::vector<Edge> incidenceMatrix,
+    Graph graph,
     int nodeCount,
     int timeLimit,
-    bool useLB
+    bool useLB,
+    std::set<int> nonUsefulNodes
 ) {
+    std::vector<Edge> incidenceMatrix = graph.incidenceMatrix;
+
     IloEnv env;
 
     try {
@@ -58,7 +75,7 @@ Result nilcatenationCplex(
         IloExpr objective(env);
         for (int i = 0; i < incidenceMatrix.size(); i++) {
             vars.add(IloIntVar(env, 0 , 1));
-            objective += vars[i]; 
+            objective += vars[i];
         }
 
         model.add(objective > 0);
@@ -71,8 +88,8 @@ Result nilcatenationCplex(
 
         for (int i = 0; i < incidenceMatrix.size(); i++) {
             Edge e = incidenceMatrix[i];
-            conditionNilc[e.from] -= e.weight * vars[i];
-            conditionNilc[e.to] += e.weight * vars[i];
+            conditionNilc[e.from] -= e.weight * vars[e.id];
+            conditionNilc[e.to] += e.weight * vars[e.id];
         }
 
         for (int i = 0; i < nodeCount; i++) {
@@ -80,7 +97,7 @@ Result nilcatenationCplex(
         }
 
         IloCplex cplex(model);
-        cplex.setOut(env.getNullStream());
+        // cplex.setOut(env.getNullStream());
         cplex.setParam(IloCplex::TiLim, timeLimit);
         cplex.setParam(IloCplex::Param::RandomSeed, 1);
 
@@ -107,7 +124,7 @@ Result nilcatenationCplex(
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
 
-        return { true, isInfeasible, isOptimal, (int)cplex.getObjValue(), resultVariables };
+        return { true, isInfeasible, isOptimal, (int)cplex.getObjValue(), resultVariables, (double)cplex.getMIPRelativeGap() };
     }
     catch (IloException& e) {
         std::cerr << "Concert exception caught: " << e << std::endl;
@@ -187,7 +204,7 @@ Result nilcatenationCplex(
         cplex.setParam(IloCplex::Param::RandomSeed, 1);
 
         if (returnFirstSolution) {
-            cplex.setParam(IloCplex::Param::MIP::Limits::Solutions, 1);
+            cplex.setParam(IloCplex::Param::MIP::Limits::Solutions, 3);
             cplex.setParam(IloCplex::Param::Emphasis::MIP, 1);
         }
 
@@ -210,7 +227,7 @@ Result nilcatenationCplex(
 
         bool isOptimal = cplex.getStatus() == IloAlgorithm::Optimal;
 
-        return { true, isInfeasible, isOptimal, (int)cplex.getObjValue(), resultVariables };
+        return { true, isInfeasible, isOptimal, (int)cplex.getObjValue(), resultVariables, (double)cplex.getMIPRelativeGap() };
     }
     catch (IloException& e) {
         std::cerr << "Concert exception caught: " << e << std::endl;
