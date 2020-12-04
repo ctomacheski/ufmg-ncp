@@ -5,7 +5,7 @@
 #include "../util/kosaraju.h"
 
 int main(int argc, char *argv[]) {
-  if (argc < 4) {
+  if (argc < 5) {
     std::cerr << "Wrong usage." << std::endl;
     return -1;
   }
@@ -15,11 +15,11 @@ int main(int argc, char *argv[]) {
 
   int nodeSize = std::stoi(std::string(argv[1]));
   double density = std::stod(std::string(argv[2]));
-  double dintictionProb = std::stod(std::string(argv[3]));
+  int maxWeight = std::stod(std::string(argv[3]));
+  int weightsSize = std::stod(std::string(argv[4]));
 
-  int weightsSize = nodeSize * dintictionProb;
   std::vector<int> discreteWeights(weightsSize);
-  std::uniform_int_distribution<std::mt19937::result_type> distWeights(1, weightsSize * 10);
+  std::uniform_int_distribution<std::mt19937::result_type> distWeights(1, maxWeight);
 
   for (int i = 0; i < weightsSize; i++) {
     int weight = distWeights(rng);

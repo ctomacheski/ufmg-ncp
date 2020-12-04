@@ -5,15 +5,16 @@
 #include <cmath>
 
 #include "../cplex/cplex.h"
- 
+#include "../../util/pre-processing.h"
+
 Result localBranching(
     int nodeCount,
     std::vector<Edge> incidenceMatrix,
     int timeLimitNode,
     int maxTimeLimit,
     int initialK,
-    int maxDiversify
-) {
+    int maxDiversify)
+{
     int remainingTime = maxTimeLimit;
     int timeLimit = std::numeric_limits<int>::max();
     int k = initialK;
@@ -27,61 +28,58 @@ Result localBranching(
 
     int rhs = std::numeric_limits<int>::max();
 
-    Result incubentSolution = { };
-    Result referenceSolution = { };
+    Result incubentSolution = {};
+    Result referenceSolution = {};
 
     std::vector<BranchingConstraint> constraints;
     bool isRight = false;
-    while (remainingTime > 0 && diversifyCount <= maxDiversify) {
+    bool isRoot = true;
+    int counter = 0;
 
-        // std::cout << std::endl << "incubentSolution value " << incubentSolution.objectiveValue << std::endl;
+    while (remainingTime > 0 && diversifyCount <= maxDiversify)
+    {
 
-        if (rhs < std::numeric_limits<int>::max() && referenceSolution.variablesResult.size() > 0) {
-            if (!isRight) {
-                // adding left branching constraint (x, x') <= rhs
-                // std::cout << "Adding left branch constraint (x, x') <= " << rhs << std::endl;
-                constraints.push_back({ referenceSolution.variablesResult, true, rhs });
+        if (rhs < std::numeric_limits<int>::max() && referenceSolution.variablesResult.size() > 0)
+        {
+            if (!isRight)
+            {
+                constraints.push_back({referenceSolution.variablesResult, true, rhs});
             }
-            else {
+            else
+            {
                 isRight = false;
             }
         }
 
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-     
+
         timeLimit = std::min(timeLimit, remainingTime);
-        // std::cout << "timeLimit " << timeLimit << std::endl;
-        // std::cout << "first " << (returnFirstSolution ? "yes" : "no") << std::endl;
-        // std::cout << "constraints size " << constraints.size() << std::endl;
-        Result newSolution = nilcatenationCplex(incidenceMatrix, nodeCount, timeLimit, lowerBound, returnFirstSolution, constraints);
+        counter = counter + 1;
+
+        Result newSolution = nilcatenationCplex(incidenceMatrix, nodeCount, timeLimit, lowerBound, returnFirstSolution, 3, constraints);
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         int elapsedTime = std::chrono::duration_cast<std::chrono::seconds>(end - begin).count();
         remainingTime -= elapsedTime;
         timeLimit = timeLimitNode;
 
-        if (newSolution.isSolutionFound && newSolution.isOptimal) {
-            // std::cout << "Found and Optimal" << std::endl;
-            if (newSolution.objectiveValue > bestLowerBound) {
+        if (newSolution.isSolutionFound && newSolution.isOptimal)
+        {
+
+            if (newSolution.objectiveValue > bestLowerBound)
+            {
                 bestLowerBound = newSolution.objectiveValue;
                 incubentSolution = newSolution;
-            } else {
-                // std::cout << "Not improving " << newSolution.objectiveValue << std::endl;
             }
 
-            if (rhs == std::numeric_limits<int>::max()) {
-                // optimal solution to original problem
-                // std::cout << "Optimal solution found" << std::endl;
+            if (rhs == std::numeric_limits<int>::max())
+            {
                 return incubentSolution;
             }
 
-            if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0) {
-                // reverse last branching constraint to (x, x') >= rhs + 1
-                if (!constraints[constraints.size() - 1].isLeft) { 
-                    // std::cout << "SHOULD BE A LEFT BRANCH" << std::endl;
-                } 
-                // std::cout << "Reverse last branching constraint to (x, x') >= " << rhs + 1 << std::endl;
-                constraints[constraints.size() - 1] = { referenceSolution.variablesResult, false, rhs + 1 };
+            if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0)
+            {
+                constraints[constraints.size() - 1] = {referenceSolution.variablesResult, false, rhs + 1};
                 isRight = true;
             }
 
@@ -90,61 +88,58 @@ Result localBranching(
             referenceSolution = newSolution;
             lowerBound = newSolution.objectiveValue;
             rhs = k;
-        } else if (newSolution.isSolutionFound && newSolution.isInfeasible) {
-            // std::cout << "Found and Infeasible" << std::endl;
-            if (rhs == std::numeric_limits<int>::max()) {
-                // original problem is infeasible
-                // std::cout << "Original problem is infeasible" << std::endl;
-                return { false, true };
+        }
+        else if (newSolution.isSolutionFound && newSolution.isInfeasible)
+        {
+            if (rhs == std::numeric_limits<int>::max())
+            {
+                return {false, true};
             }
 
-            if (constraints.size() > 0  && referenceSolution.variablesResult.size() > 0) {
-                // reverse last branching constraint to (x, x') >= rhs + 1
-                if (!constraints[constraints.size() - 1].isLeft) { 
-                    // std::cout << "SHOULD BE A LEFT BRANCH" << std::endl;
-                }
-                // std::cout << "Reverse last branching constraint to (x, x') >= " << rhs + 1 << std::endl;
-                constraints[constraints.size() - 1] = { referenceSolution.variablesResult, false, rhs + 1 };
+            if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0)
+            {
+                constraints[constraints.size() - 1] = {referenceSolution.variablesResult, false, rhs + 1};
                 isRight = true;
             }
 
-            if (diversify) {
+            if (diversify)
+            {
                 timeLimit = std::numeric_limits<int>::max();
                 lowerBound = 0;
                 returnFirstSolution = true;
                 diversifyCount++;
             }
 
-            rhs += std::ceil((double)k/2);
+            rhs += std::ceil((double)k / 2);
             diversify = true;
-        } else if (newSolution.isSolutionFound) {
-            // std::cout << "Found and Feasible" << std::endl;
-            if (rhs < std::numeric_limits<int>::max()) {
-                if (returnFirstSolution) {
-                    if (constraints.size() > 0) {
-                        // delete last left branch constraint
+        }
+        else if (newSolution.isSolutionFound)
+        {
+            if (rhs < std::numeric_limits<int>::max())
+            {
+                if (returnFirstSolution)
+                {
+                    if (constraints.size() > 0)
+                    {
                         constraints.pop_back();
                     }
                 }
-                else { 
-                    if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0) {
-                        // reverse last branching constraint to (x, x') >= 1
-                        if (!constraints[constraints.size() - 1].isLeft) { 
-                            // std::cout << "SHOULD BE A LEFT BRANCH" << std::endl;
-                        }
-                        else {
-                            // std::cout << "Reverse last branching constraint to (x, x') >= " << 1 << std::endl;
-                            constraints[constraints.size() - 1] = { referenceSolution.variablesResult, false, 1 };
+                else
+                {
+                    if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0)
+                    {
+                        if (constraints[constraints.size() - 1].isLeft)
+                        {
+                            constraints[constraints.size() - 1] = {referenceSolution.variablesResult, false, 1};
                         }
                     }
                 }
             }
 
-             if (newSolution.objectiveValue > bestLowerBound) {
+            if (newSolution.objectiveValue > bestLowerBound)
+            {
                 bestLowerBound = newSolution.objectiveValue;
                 incubentSolution = newSolution;
-            } else {
-                // std::cout << "Not improving " << newSolution.objectiveValue << std::endl;
             }
 
             returnFirstSolution = false;
@@ -152,76 +147,73 @@ Result localBranching(
             referenceSolution = newSolution;
             lowerBound = newSolution.objectiveValue;
             rhs = k;
-        } else {
-            // std::cout << "Not found" << std::endl;
-            if (diversify) {
-                if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0) {
-                    // reverse last branching constraint to (x, x') >= 1
-                    if (!constraints[constraints.size() - 1].isLeft) { 
-                        // std::cout << "SHOULD BE A LEFT BRANCH" << std::endl;
-                    }
-                    else {
-                        // std::cout << "Reverse last branching constraint to (x, x') >= " << 1 << std::endl;
-                        constraints[constraints.size() - 1] = { referenceSolution.variablesResult, false, 1 };
+        }
+        else
+        {
+            if (diversify)
+            {
+                if (constraints.size() > 0 && referenceSolution.variablesResult.size() > 0)
+                {
+                    if (constraints[constraints.size() - 1].isLeft)
+                    {
+                        constraints[constraints.size() - 1] = {referenceSolution.variablesResult, false, 1};
                     }
                 }
 
                 timeLimit = std::numeric_limits<int>::max();
-                rhs += std::ceil((double)k/2);
+                rhs += std::ceil((double)k / 2);
                 lowerBound = 0;
                 returnFirstSolution = true;
                 diversifyCount++;
-            } else {
-                if (constraints.size() > 0) {
-                    // delete last left branch constraint
+            }
+            else
+            {
+                if (constraints.size() > 0)
+                {
                     constraints.pop_back();
                 }
-                rhs -= std::ceil((double)k/2);
+                rhs -= std::ceil((double)k / 2);
             }
             diversify = true;
         }
     }
 
-    // std::cout << std::endl << "End round" << std::endl;
-
     timeLimit = std::max(remainingTime, timeLimitNode);
-    // std::cout << "constraints size " << constraints.size() << std::endl;
-    Result finalSolution = nilcatenationCplex(incidenceMatrix, nodeCount, timeLimit, bestLowerBound, false, constraints);
+    Result finalSolution = nilcatenationCplex(incidenceMatrix, nodeCount, timeLimit, bestLowerBound, false, 1, constraints);
 
-    if (finalSolution.isSolutionFound && finalSolution.objectiveValue >= incubentSolution.objectiveValue) {
-        // std::cout << "Found a better solution" << std::endl;
+    if (finalSolution.isSolutionFound && finalSolution.objectiveValue >= incubentSolution.objectiveValue)
+    {
         return finalSolution;
     }
 
-    return {
-        incubentSolution.isSolutionFound,
-        incubentSolution.isInfeasible,
-        false,
-        incubentSolution.objectiveValue,
-        incubentSolution.variablesResult
-    };
+    return {incubentSolution.isSolutionFound,
+            incubentSolution.isInfeasible,
+            false,
+            incubentSolution.objectiveValue,
+            incubentSolution.variablesResult};
 }
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
     int nodeCount;
     int edgeCount;
     std::cin >> nodeCount >> edgeCount;
 
-    int maxTimeLimit = 600;
-    const int timeLimitNode = std::min((edgeCount/3000) * (maxTimeLimit/(edgeCount/nodeCount)), maxTimeLimit);
+    int maxTimeLimit = 3600;
+    const int timeLimitNode = 300;
     maxTimeLimit -= timeLimitNode;
 
-    const int initialK = 10;
-    const int maxDiversify = edgeCount/1000;
+    const int initialK = 5;
+    const int maxDiversify = std::numeric_limits<int>::max(); //nodeCount * 100;
 
-    std::vector<Edge> incidenceMatrix = parseIncidenceMatrix(nodeCount, edgeCount);
-    Result result = localBranching(nodeCount, incidenceMatrix, timeLimitNode, maxTimeLimit, initialK, maxDiversify);
+    Graph graph = parseIncidenceMatrix(nodeCount, edgeCount);
+    preProcess(graph);
+    Result result = localBranching(nodeCount, graph.incidenceMatrix, timeLimitNode, maxTimeLimit, initialK, maxDiversify);
 
     std::cout
         << result.objectiveValue << " "
         << result.gap << " "
         << (result.isOptimal ? "1" : "0") << " "
-        << (verifySolution(incidenceMatrix, result, nodeCount) ? "1" : "0")
+        << (verifySolution(graph.incidenceMatrix, result, nodeCount) ? "1" : "0")
         << std::endl;
 }

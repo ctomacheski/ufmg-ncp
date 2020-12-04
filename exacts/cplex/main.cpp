@@ -1,36 +1,19 @@
 #include <iostream>
 #include <vector>
+#include <set>
+#include <algorithm>
+#include <chrono>
+#include <cmath>
 
 #include "cplex.h"
-#include "../../util/subset.h"
+#include "../../util/pre-processing.h"
 
-std::set<int> findNonUsefulNodes(int vertexCount, Graph graph) {
-  std::set<int> toExclude = std::set<int>();
-  for (int i = 0; i < vertexCount; i++) {
-    std::vector<int> subsetSumInput;
-    for (auto it = graph.ingoingEdges[i].begin(); it != graph.ingoingEdges[i].end(); it++) {
-        subsetSumInput.push_back(it->weight);
-    }
-    for (auto it = graph.outgoingEdges[i].begin(); it != graph.outgoingEdges[i].end(); it++) {
-        subsetSumInput.push_back(-it->weight);
-    }
-
-    bool hasSubsetSum = subsetSum(subsetSumInput, 0);
-
-    if (!hasSubsetSum) {
-      toExclude.insert(i);
-    }
-  }
-
-  std::cout << "Can exclude " << toExclude.size() << " nodes." << std::endl;
-  return toExclude;
-}
-
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   int useLB = 0;
-  if (argc == 2) {
-      useLB = std::stoi(std::string(argv[1]));
+  if (argc == 2)
+  {
+    useLB = std::stoi(std::string(argv[1]));
   }
 
   int vertexCount;
@@ -38,16 +21,41 @@ int main (int argc, char **argv)
   std::cin >> vertexCount >> edgeCount;
 
   Graph graph = parseIncidenceMatrix(vertexCount, edgeCount);
-  std::cout << "Parsed" << std::endl;
-  std::set<int> nonUsefulNodes = findNonUsefulNodes(vertexCount, graph);
-  // Result result = nilcatenationCplex(graph, vertexCount, 600, useLB == 1, nonUsefulNodes);
 
-  // std::cout
-  //   << result.objectiveValue << " "
-  //   << result.gap << " "
-  //   << (result.isOptimal ? "1" : "0") << " "
-  //   << (verifySolution(graph.incidenceMatrix, result, vertexCount) ? "1" : "0")
-  //   << std::endl;
+  // std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+  preProcess(graph);
+  // std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-  // std::cout << std::endl;
+  // int excludedNodes = 0;
+  // for (int i = 0; i < vertexCount; i++)
+  // {
+  //   bool excluded = graph.ingoingEdges[i].size() == 0 && graph.outgoingEdges[i].size() == 0;
+  //   if (excluded)
+  //   {
+  //     excludedNodes++;
+  //   }
+  // }
+
+  // long allMaxWeight = 0;
+  // for (int i = 0; i < graph.incidenceMatrix.size(); i++)
+  // {
+  //   allMaxWeight = std::max(allMaxWeight, graph.incidenceMatrix[i].weight);
+  // }
+
+  // double density = ((double)graph.incidenceMatrix.size()) / ((vertexCount - excludedNodes) * std::log2(allMaxWeight));
+
+  // std::cout << "density " << density << std::endl;
+  // std::cout << "time " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()
+  //           << " nodes " << vertexCount - excludedNodes << " edges " << graph.incidenceMatrix.size() << std::endl;
+
+  Result result = nilcatenationCplex(graph, vertexCount, 3600, useLB == 1);
+
+  std::cout
+      << result.objectiveValue << " "
+      << result.gap << " "
+      << (result.isOptimal ? "1" : "0") << " "
+      << (verifySolution(graph.incidenceMatrix, result, vertexCount) ? "1" : "0")
+      << std::endl;
+
+  std::cout << std::endl;
 }

@@ -16,11 +16,14 @@ CCLNFLAGS = -lconcert -lilocplex -l$(CPLEXLIB) -lm -lpthread -ldl
 
 GCC_FLAGS=-std=c++11 -O3
 
-make: subset.o cplex.o main.cpp
-	g++ $(CCFLAGS) $(CCLNDIRS) main.cpp cplex.o subset.o -o main.out $(CCLNFLAGS)
+make: pre-processing.o subset.o cplex.o main.cpp
+	g++ $(CCFLAGS) $(CCLNDIRS) main.cpp cplex.o subset.o pre-processing.o -o main.out $(CCLNFLAGS)
 
 cplex.o: cplex.cpp cplex.h
 	g++ -c $(CCFLAGS) cplex.cpp -o cplex.o
+
+pre-processing.o: ../../util/pre-processing.cpp ../../util/pre-processing.h
+	g++ $(GCC_FLAGS) -c ../../util/pre-processing.cpp
 
 subset.o: ../../util/subset.cpp ../../util/subset.h
 	g++ $(GCC_FLAGS) -c ../../util/subset.cpp
